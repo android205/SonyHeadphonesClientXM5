@@ -13,6 +13,7 @@ target_sources(SonyHeadphonesClient
     PRIVATE BluetoothWrapper.cpp
     ByteMagic.cpp
     CommandSerializer.cpp
+    Log.cpp
     TimedMessageQueue.cpp
     CrossPlatformGUI.cpp "Headphones.cpp")
 
@@ -93,6 +94,7 @@ if (WIN32)
         PRIVATE windows/WindowsGUI.cpp
         windows/main.cpp
         windows/WindowsBluetoothConnector.cpp
+        windows/TrayIcon.cpp
         imgui/backends/imgui_impl_dx11.cpp
         imgui/backends/imgui_impl_win32.cpp
     )

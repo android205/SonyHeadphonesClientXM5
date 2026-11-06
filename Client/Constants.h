@@ -89,8 +89,79 @@ enum class NC_DUAL_SINGLE_VALUE : signed char
 
 enum class COMMAND_TYPE : signed char
 {
+	CONNECT_GET_PROTOCOL_INFO = 0,
+	CONNECT_RET_PROTOCOL_INFO = 1,
 	VPT_SET_PARAM = 72,
-	NCASM_SET_PARAM = 104
+	NCASM_GET_PARAM = 102,
+	NCASM_RET_PARAM = 103,
+	NCASM_SET_PARAM = 104,
+	NCASM_NTFY_PARAM = 105
+};
+
+//XM4/XM5 ("v2") queries and their replies, confirmed against a WH-1000XM5 (firmware 2.5.1).
+//Replies are the query byte + 1; unprompted notifications are + 3.
+inline constexpr char CMD_DEVICE_INFO_GET = 0x04;      //04 01 = model name, 04 02 = firmware
+inline constexpr char CMD_SUPPORT_FUNCTION_GET = 0x06;
+inline constexpr char CMD_CODEC_GET_V2 = 0x12;         //12 02 -> 13 02 <codec>
+inline constexpr char CMD_BATTERY_GET_V2 = 0x22;       //22 00 -> 23 00 <percent> <charging>
+inline constexpr char CMD_EQ_GET_V2 = 0x56;            //56 00 -> 57 00 <preset> <band count> <bands...>
+inline constexpr char CMD_EQ_SET_V2 = 0x58;            //58 00 <preset> 00, or 58 00 A0 06 <bands> for Custom
+//F6 0C -> F7 0C 01 <state>. F8 0C 01 <state> sets it and the XM5 confirms with F9 0C, but
+//turning it on did NOT enable Speak-to-Chat, so this is probably some other setting.
+inline constexpr char CMD_STC_GET_V2 = (char)0xF6;
+inline constexpr char CMD_STC_SET_V2 = (char)0xF8;
+inline constexpr char STC_SUBTYPE_V2 = 0x0C;
+//Sony's v2 on/off settings appear to use 00 = on, 01 = off. Not yet confirmed for Speak-to-Chat.
+inline constexpr char STC_ON_V2 = 0x00;
+inline constexpr char STC_OFF_V2 = 0x01;
+
+inline constexpr int EQ_BAND_COUNT = 6;                //Clear Bass + 400Hz, 1k, 2.5k, 6.3k, 16k
+inline constexpr int EQ_BAND_CENTER = 10;              //Bands are sent as 0..20, meaning -10..+10
+
+enum class AUDIO_CODEC : unsigned char
+{
+	UNKNOWN = 0,
+	SBC = 0x01,
+	AAC = 0x02,
+	LDAC = 0x10,
+	APTX = 0x20,
+	APTX_HD = 0x21
+};
+
+//Preset IDs from community reverse engineering of Sony's app
+enum class EQ_PRESET : unsigned char
+{
+	OFF = 0x00,
+	BRIGHT = 0x10,
+	EXCITED = 0x11,
+	MELLOW = 0x12,
+	RELAXED = 0x13,
+	VOCAL = 0x14,
+	TREBLE_BOOST = 0x15,
+	BASS_BOOST = 0x16,
+	SPEECH = 0x17,
+	CUSTOM = 0xA0,
+	USER_SETTING_1 = 0xA1,
+	USER_SETTING_2 = 0xA2
+};
+
+//In the order the GUI's combo shows them
+inline const EQ_PRESET EQ_PRESET_ARRAY[] = {
+	EQ_PRESET::OFF, EQ_PRESET::BRIGHT, EQ_PRESET::EXCITED, EQ_PRESET::MELLOW, EQ_PRESET::RELAXED,
+	EQ_PRESET::VOCAL, EQ_PRESET::TREBLE_BOOST, EQ_PRESET::BASS_BOOST, EQ_PRESET::SPEECH,
+	EQ_PRESET::CUSTOM, EQ_PRESET::USER_SETTING_1, EQ_PRESET::USER_SETTING_2
+};
+inline constexpr const char* EQ_PRESET_NAMES = "Off\0Bright\0Excited\0Mellow\0Relaxed\0Vocal\0Treble Boost\0Bass Boost\0Speech\0Custom\0User Setting 1\0User Setting 2\0\0";
+
+//XM4/XM5 ("v2") noise cancelling / ambient sound. Experimental, from community reverse engineering.
+inline constexpr char NC_ASM_INQUIRED_TYPE_V2 = 0x17;
+inline constexpr int MAX_ASM_LEVEL_V2 = 20;
+
+enum class NC_ASM_MODE_V2 : signed char
+{
+	NOISE_CANCELLING = 0,
+	AMBIENT_SOUND = 1,
+	OFF = 2
 };
 
 enum class VPT_PRESET_ID : signed char

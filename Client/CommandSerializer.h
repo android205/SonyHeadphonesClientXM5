@@ -15,9 +15,13 @@ namespace CommandSerializer
 	{
 		DATA_TYPE dataType;
 		unsigned char seqNumber;
-		//Not really needed for now
-		//Buffer messageBytes;
+		//The command payload, without the header and checksum
+		Buffer messageBytes;
 	};
+
+	//Format bytes as space-separated hex, for logging
+	std::string toHex(const char* data, size_t size);
+	std::string toHex(const Buffer& src);
 
 	//escape special chars
 
@@ -41,5 +45,35 @@ namespace CommandSerializer
 	NC_DUAL_SINGLE_VALUE getDualSingleForAsmLevel(char asmLevel);
 	Buffer serializeNcAndAsmSetting(NC_ASM_EFFECT ncAsmEffect, NC_ASM_SETTING_TYPE ncAsmSettingType, ASM_SETTING_TYPE asmSettingType, ASM_ID asmId, char asmLevel);
 	Buffer serializeVPTSetting(VPT_INQUIRED_TYPE type, unsigned char preset);
+
+	//Experimental XM4/XM5 ("v2") commands, based on community reverse engineering, not yet confirmed
+	Buffer serializeProtocolInfoRequest();
+	Buffer serializeNcAsmQueryV2();
+
+	//Read-only queries sent on connect. None of them change settings.
+	std::vector<Buffer> connectQueriesV2();
+	Buffer serializeBatteryQueryV2();
+
+	//Parsers for XM4/XM5 replies (query + 1) and notifications (query + 3). Return false if the
+	//payload isn't that kind of message.
+	bool parseDeviceInfo(const Buffer& payload, unsigned char& infoType, std::string& value);
+	bool parseBatteryV2(const Buffer& payload, int& percent, bool& charging);
+	bool parseCodecV2(const Buffer& payload, AUDIO_CODEC& codec);
+	bool parseEqV2(const Buffer& payload, EQ_PRESET& preset, std::vector<int>& bands);
+
+	const char* codecName(AUDIO_CODEC codec);
+
+	//Experimental: Speak-to-Chat
+	Buffer serializeSpeakToChatQueryV2();
+	Buffer serializeSpeakToChatV2(bool enabled);
+	bool parseSpeakToChatV2(const Buffer& payload, bool& enabled);
+
+	//Experimental: equalizer set commands are not yet confirmed on the XM5
+	Buffer serializeEqPresetV2(EQ_PRESET preset);
+	//bands are -10..+10, Clear Bass first
+	Buffer serializeEqCustomV2(const std::vector<int>& bands);
+	Buffer serializeNcAsmSettingV2(NC_ASM_MODE_V2 mode, bool focusOnVoice, unsigned char asmLevel);
+	//Parses a 67 17 (reply to a query) or 69 17 (change notification) payload. False if it's neither.
+	bool parseNcAsmReportV2(const Buffer& payload, NC_ASM_MODE_V2& mode, bool& focusOnVoice, int& asmLevel);
 }
 

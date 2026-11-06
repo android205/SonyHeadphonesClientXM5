@@ -1,4 +1,5 @@
 #include "WindowsGUI.h"
+#include "TrayIcon.h"
 
 /*
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -13,6 +14,8 @@ static ID3D11Device* g_pd3dDevice = NULL;
 static ID3D11DeviceContext* g_pd3dDeviceContext = NULL;
 static IDXGISwapChain* g_pSwapChain = NULL;
 static ID3D11RenderTargetView* g_mainRenderTargetView = NULL;
+//For the tray menu, which is handled in WndProc
+static CrossPlatformGUI* g_gui = NULL;
 
 void EnterGUIMainLoop(BluetoothWrapper bt)
 {
@@ -33,6 +36,13 @@ void EnterGUIMainLoop(BluetoothWrapper bt)
 		throw std::runtime_error("Failed to create D3D device");
 	}
 
+	//Headphones icon for the window, taskbar and tray
+	HICON bigIcon = Tray::createAppIcon(GetSystemMetrics(SM_CXICON));
+	HICON smallIcon = Tray::createAppIcon(GetSystemMetrics(SM_CXSMICON));
+	SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)bigIcon);
+	SendMessage(hwnd, WM_SETICON, ICON_SMALL, (LPARAM)smallIcon);
+	Tray::create(hwnd, smallIcon);
+
 	// Show the window
 	::ShowWindow(hwnd, SW_SHOWDEFAULT);
 	::UpdateWindow(hwnd);
@@ -48,8 +58,10 @@ void EnterGUIMainLoop(BluetoothWrapper bt)
 	ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
 	CrossPlatformGUI gui(std::move(bt));
+	g_gui = &gui;
 
 	UINT presentFlags = 0;
+	int framesSinceTrayUpdate = 0;
 
 	// Main loop
 	MSG msg = { 0 };
@@ -73,9 +85,23 @@ void EnterGUIMainLoop(BluetoothWrapper bt)
 		ImGui_ImplWin32_NewFrame();
 
 		//if the user wants to quit
+		//The GUI pass keeps running while the window is hidden in the tray: it's what sends commands
 		if (!gui.performGUIPass())
 		{
 			break;
+		}
+
+		if (++framesSinceTrayUpdate >= FPS / 2)
+		{
+			framesSinceTrayUpdate = 0;
+			Tray::update(gui.getQuickStatus());
+		}
+
+		//Hidden in the tray: nothing to draw, and no vsync to pace the loop
+		if (!IsWindowVisible(hwnd))
+		{
+			Sleep(50);
+			continue;
 		}
 
 
@@ -95,6 +121,10 @@ void EnterGUIMainLoop(BluetoothWrapper bt)
 	}
 
 	// Cleanup
+	g_gui = NULL;
+	Tray::destroy();
+	DestroyIcon(bigIcon);
+	DestroyIcon(smallIcon);
 	ImGui_ImplDX11_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
@@ -174,8 +204,15 @@ namespace WindowsGUIInternal
 		if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
 			return true;
 
+		if (Tray::handleMessage(hWnd, msg, wParam, lParam, g_gui))
+			return 0;
+
 		switch (msg)
 		{
+		case WM_CLOSE:
+			//The X hides to the tray; Exit in the tray menu quits
+			Tray::hideToTray(hWnd);
+			return 0;
 		case WM_SIZE:
 			if (g_pd3dDevice != NULL && wParam != SIZE_MINIMIZED)
 			{
