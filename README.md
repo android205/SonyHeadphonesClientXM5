@@ -1,8 +1,8 @@
-<h1 align="center">Sony Headphones Client — XM5 edition</h1>
+<h1 align="center">Sony Headphones Client (XM5 edition)</h1>
 
 <p align="center">
-  A desktop app for controlling Sony headphones from your PC, with support for the <b>WH-1000XM5</b>.<br/>
-  No phone needed: noise cancelling, ambient sound, equalizer and battery, right from Windows.
+  A desktop app for controlling Sony headphones from your PC, now with WH-1000XM5 support.<br/>
+  Switch noise cancelling, change the EQ and check the battery without picking up your phone.
 </p>
 
 <p align="center">
@@ -10,39 +10,39 @@
 </p>
 
 > [!WARNING]
-> **This program is not affiliated with Sony.** It talks to your headphones using a reverse-engineered protocol. You are responsible for any damage that may occur while using it.
+> This program is not affiliated with Sony. It talks to your headphones using a reverse-engineered protocol, and you're responsible for any damage that may occur while using it.
 
 ## Features
 
-Tested on a **WH-1000XM5** (firmware 2.5.1) on Windows:
+Everything here has been tested on a WH-1000XM5 (firmware 2.5.1) on Windows.
 
-- **Noise Cancelling / Ambient Sound / Off**, with the ambient level (1–20) and Focus on Voice
-- **Equalizer**: all presets (Bright, Excited, Mellow, Relaxed, Vocal, Treble Boost, Bass Boost, Speech…) plus custom Clear Bass and 5-band settings
-- **Battery level**, refreshed every minute, and whether it's charging
-- **Device info**: model, firmware version and the Bluetooth codec in use (SBC / AAC / LDAC)
-- **Stays in sync**: shows your headphones' real settings when it connects, and follows changes you make with the button on the earcup
-- **Tray icon** (Windows): hover for battery and mode, right-click to switch Noise Cancelling / Ambient / Off. Closing the window keeps the app running in the tray
-- **Auto-connect** when you have one pair of Sony headphones paired
+- Switch between noise cancelling, ambient sound and off, and set the ambient level (1 to 20) and Focus on Voice
+- Pick any equalizer preset (Bright, Excited, Mellow, Relaxed, Vocal, Treble Boost, Bass Boost, Speech and so on), or set Clear Bass and the 5 bands yourself
+- See the battery level, which refreshes every minute, and whether it's charging
+- See the model, firmware version and the Bluetooth codec in use (SBC, AAC or LDAC)
+- When it connects, the app shows the settings your headphones already have, and it keeps up when you press the button on the earcup
+- On Windows there's a tray icon: hover it for battery and mode, or right-click to switch modes. Closing the window leaves the app running in the tray
+- If you only have one pair of Sony headphones paired, it connects to them by itself
 
-Not supported yet: Speak-to-Chat, wind noise reduction, and other XM5-only settings.
+Speak-to-Chat, wind noise reduction and the other XM5-only settings aren't supported yet.
 
 ## Supported headphones
 
 | Headphones | Status |
 |---|---|
-| WH-1000XM5 | ✅ Tested: everything listed above |
-| WH-1000XM4 | Probably works (it's reported to use the same newer protocol), but untested |
-| WH-1000XM3 and older | Use **Advanced → untick "XM4/XM5 command format"** for the original controls, including Virtual Sound |
+| WH-1000XM5 | Tested, everything above works |
+| WH-1000XM4 | Untested. It's reported to use the same newer protocol, so it will probably work |
+| WH-1000XM3 and older | Open Advanced and untick "XM4/XM5 command format" to get the original controls, including Virtual Sound |
 
-If you try it on other Sony headphones, please open an issue and say what works.
+If you try it with other Sony headphones, please open an issue and say what works.
 
 ## Using it
 
 1. Pair your headphones with Windows and make sure they're connected.
-2. Start `SonyHeadphonesClient.exe`. If you have one pair of Sony headphones, it connects by itself; otherwise pick them from the list.
-3. Close the window to send it to the tray. Use **Exit** in the tray menu to quit.
+2. Start `SonyHeadphonesClient.exe`. With one pair of Sony headphones it connects by itself; otherwise pick yours from the list.
+3. Closing the window sends it to the tray. To quit, choose Exit from the tray menu.
 
-Every message to and from the headphones is written to `SonyHeadphonesClient.log` next to the app, which is useful for reporting problems or working out new features.
+The app logs every message to and from the headphones in `SonyHeadphonesClient.log`, next to the exe. Attach it if you're reporting a problem; it's also how the XM5 features here were worked out.
 
 ## Building
 
@@ -52,11 +52,11 @@ Clone with the [Dear ImGui](https://github.com/ocornut/imgui) submodule:
 git clone --recurse-submodules https://github.com/android205/SonyHeadphonesClientXM5.git
 ```
 
-If you already cloned without it: `git submodule update --init`.
+If you already cloned without it, run `git submodule update --init`.
 
 ### Windows
 
-Needs Visual Studio 2022 with the **Desktop development with C++** workload (it includes CMake). From a *Developer Command Prompt*:
+You need Visual Studio 2022 with the "Desktop development with C++" workload, which includes CMake. From a Developer Command Prompt:
 
 ```sh
 cd Client
@@ -66,7 +66,7 @@ cmake --build build --config Release
 
 The app ends up in `build\Release\SonyHeadphonesClient.exe`.
 
-> If the build fails with `FileTracker` / `FTK1011` errors, your folder path is too long for MSBuild. Clone to a short path such as `C:\src`, or use `-G Ninja` with the build folder somewhere short.
+> If the build fails with `FileTracker` or `FTK1011` errors, your folder path is too long for MSBuild. Clone somewhere short like `C:\src`, or build with `-G Ninja` and put the build folder somewhere short.
 
 ### Linux
 
@@ -82,32 +82,32 @@ Fedora:
 sudo dnf install bluez-libs-devel glew-devel glfw-devel dbus-devel
 ```
 
-Then build with CMake as above (without the `-G`/`-A` options). The Linux build hasn't been tested with the XM5 changes.
+Then build with CMake as above, leaving out the `-G` and `-A` options. I haven't tested the Linux build since the XM5 changes.
 
 ### macOS
 
-The Xcode project in `Client/macos` hasn't been updated for this fork yet (it's missing the new `Log.cpp`), so it won't build as-is.
+The Xcode project in `Client/macos` hasn't been updated for this fork. It's missing the new `Log.cpp`, so it won't build as it is.
 
 ## Protocol notes (XM4/XM5)
 
-For anyone extending this. Payloads are sent as `DATA_MDR` (`0x0C`) messages. Replies use the query byte + 1, and unprompted notifications use + 3.
+If you want to add features, this is what's been worked out so far. Payloads go out as `DATA_MDR` (`0x0C`) messages. A reply uses the query byte plus 1, and a notification the headphones send on their own uses the query byte plus 3.
 
 | Feature | Query | Reply / notify | Set |
 |---|---|---|---|
-| Protocol info | `00 00` | `01 00 …` | — |
-| Model / firmware | `04 01` / `04 02` | `05 01 <len> <text>` | — |
-| Supported functions | `06 00` | `07 00 <count> <id, value>…` | — |
-| Battery | `22 00` | `23 00 <percent> <charging>` / `25 00 …` | — |
-| Codec | `12 02` | `13 02 <codec>` (01 SBC, 02 AAC, 10 LDAC) | — |
+| Protocol info | `00 00` | `01 00 …` | |
+| Model / firmware | `04 01` / `04 02` | `05 01 <len> <text>` | |
+| Supported functions | `06 00` | `07 00 <count> <id, value>…` | |
+| Battery | `22 00` | `23 00 <percent> <charging>` / `25 00 …` | |
+| Codec | `12 02` | `13 02 <codec>` (01 SBC, 02 AAC, 10 LDAC) | |
 | NC / ambient | `66 17` | `67 17 …` / `69 17 01 <on> <ambient> <voice> <level>` | `68 17 01 <on> <ambient> <voice> <level>` |
-| Equalizer | `56 00` | `57 00 <preset> 06 <6 bands, 0–20>` / `59 00 …` | `58 00 <preset> 00`, or `58 00 A0 06 <bands>` for custom |
-| Unknown on/off setting | `F6 0C` | `F7 0C 01 <00 on / 01 off>` / `F9 0C …` | `F8 0C 01 <state>` (accepted, but not Speak-to-Chat) |
+| Equalizer | `56 00` | `57 00 <preset> 06 <6 bands, 0-20>` / `59 00 …` | `58 00 <preset> 00`, or `58 00 A0 06 <bands>` for custom |
+| Unknown on/off setting | `F6 0C` | `F7 0C 01 <00 on / 01 off>` / `F9 0C …` | `F8 0C 01 <state>` (the headphones accept it, but it isn't Speak-to-Chat) |
 
-The headphones expect every message they send to be ACKed promptly, or they keep resending it. The client runs a background reader thread for this.
+The headphones expect you to ACK every message they send straight away, and they keep resending it until you do. That's why the client reads from them on a background thread.
 
 ## Credits
 
-This is a fork of [Plutoberth/SonyHeadphonesClient](https://github.com/Plutoberth/SonyHeadphonesClient), by way of [Alpakash/SonyHeadphonesClientXM5](https://github.com/Alpakash/SonyHeadphonesClientXM5) (which found the XM5's Bluetooth service ID).
+This is a fork of [Plutoberth/SonyHeadphonesClient](https://github.com/Plutoberth/SonyHeadphonesClient), by way of [Alpakash/SonyHeadphonesClientXM5](https://github.com/Alpakash/SonyHeadphonesClientXM5), which found the XM5's Bluetooth service ID.
 
 Original contributors:
 
