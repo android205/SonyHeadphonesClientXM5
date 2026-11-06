@@ -36,6 +36,10 @@ Speak-to-Chat, wind noise reduction and the other XM5-only settings aren't suppo
 
 If you try it with other Sony headphones, please open an issue and say what works.
 
+## Download
+
+Get the Windows zip from the [Releases page](https://github.com/android205/SonyHeadphonesClientXM5/releases/latest), unzip it anywhere and run `SonyHeadphonesClient.exe`. Nothing needs installing. The exe isn't code-signed, so Windows SmartScreen may warn you the first time; click "More info", then "Run anyway".
+
 ## Using it
 
 1. Pair your headphones with Windows and make sure they're connected.

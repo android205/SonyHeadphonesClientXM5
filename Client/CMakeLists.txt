@@ -1,14 +1,17 @@
-#3.10+ so CMake 4 (which dropped support for older minimums) still configures it
-cmake_minimum_required(VERSION 3.10)
-project(SonyHeadphonesClient)
+#3.15+ for CMAKE_MSVC_RUNTIME_LIBRARY; also keeps CMake 4 (which dropped older minimums) happy
+cmake_minimum_required(VERSION 3.15)
+project(SonyHeadphonesClient VERSION 2.0.0)
 
 set(CMAKE_CXX_STANDARD 20)
+
+#Link the MSVC runtime statically, so the exe runs without installing the VC++ redistributable
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 find_package(Threads REQUIRED)
 
 add_executable(SonyHeadphonesClient)
 
-add_definitions(-D__HEADPHONES_APP_VERSION__="1.3.1")
+add_definitions(-D__HEADPHONES_APP_VERSION__="${PROJECT_VERSION}")
 
 target_sources(SonyHeadphonesClient
     PRIVATE BluetoothWrapper.cpp
@@ -103,6 +106,12 @@ if (WIN32)
     target_link_libraries(SonyHeadphonesClient
         PRIVATE d3d11
     )
+
+    #A GUI app: no console window. Keep main() as the entry point.
+    set_target_properties(SonyHeadphonesClient PROPERTIES WIN32_EXECUTABLE TRUE)
+    if (MSVC)
+        target_link_options(SonyHeadphonesClient PRIVATE /ENTRY:mainCRTStartup)
+    endif ()
 endif ()
 
 target_link_libraries(SonyHeadphonesClient
