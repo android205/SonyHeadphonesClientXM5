@@ -6,7 +6,9 @@
 </p>
 
 <p align="center">
-  <img width="400" src="static/screenshot.png" alt="Screenshot of the app connected to a WH-1000XM5"/>
+  <img width="360" src="static/screenshot.png" alt="The app connected to a WH-1000XM5: battery, noise cancelling modes and the equalizer"/>
+  &nbsp;
+  <img width="360" src="static/screenshot-settings.png" alt="The Settings card: Speak-to-Chat, pause when taken off, DSEE Extreme, Bluetooth connection mode and auto power off"/>
 </p>
 
 > [!WARNING]
