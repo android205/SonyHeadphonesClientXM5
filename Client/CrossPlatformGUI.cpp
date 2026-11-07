@@ -186,6 +186,7 @@ bool CrossPlatformGUI::performGUIPass()
 		{
 			this->_drawNoiseControlV2();
 			this->_drawEqualizer();
+			this->_drawDeviceSettings();
 		}
 		else
 		{
@@ -518,10 +519,6 @@ void CrossPlatformGUI::_drawNoiseControlV2()
 		ImGui::Checkbox("Focus on Voice", &focusOnVoice);
 	}
 
-	//No Speak-to-Chat control: F6/F8 0C toggles a real on/off setting on the XM5 (it's
-	//confirmed with F9 0C), but turning it on didn't enable Speak-to-Chat. The state is
-	//still queried on connect and logged, for working out what it is.
-
 	asmLevel = (std::max)(asmLevel, 1);
 	this->_headphones.setNcAsmModeV2(static_cast<NC_ASM_MODE_V2>(mode));
 	this->_headphones.setAsmLevel(asmLevel);
@@ -640,6 +637,98 @@ void CrossPlatformGUI::_drawEqualizer()
 	state.preset = EQ_PRESET_ARRAY[presetIndex];
 	state.bands.assign(bands, bands + EQ_BAND_COUNT);
 	this->_headphones.setEqV2(state);
+}
+
+void CrossPlatformGUI::_drawDeviceSettings()
+{
+	//Follow what the headphones report (on connect, after each change, and changes from Sony's app)
+	bool anyReported = false;
+	for (int i = 0; i < static_cast<int>(DeviceSetting::COUNT); i++)
+	{
+		auto id = static_cast<DeviceSetting>(i);
+		unsigned char external;
+		if (this->_headphones.takeExternalDeviceSetting(id, external))
+		{
+			this->_deviceSettings[i] = external;
+		}
+		anyReported |= this->_headphones.hasReportedDeviceSetting(id);
+	}
+	if (!anyReported)
+	{
+		return;
+	}
+
+	Card card;
+	sectionTitle("SETTINGS");
+
+	auto onOff = [&](DeviceSetting id, const char* label, const char* help) {
+		if (!this->_headphones.hasReportedDeviceSetting(id))
+		{
+			return;
+		}
+		unsigned char& value = this->_deviceSettings[static_cast<int>(id)];
+		bool on = value == SETTING_ON;
+		if (ImGui::Checkbox(label, &on))
+		{
+			value = on ? SETTING_ON : SETTING_OFF;
+		}
+		ImGui::PushFont(this->_fontSmall);
+		ImGui::Indent(ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x);
+		textDim("%s", help);
+		ImGui::Unindent(ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x);
+		ImGui::PopFont();
+		this->_headphones.setDeviceSetting(id, value);
+	};
+
+	//A dropdown over known values; an unrecognised value is shown as-is and left alone
+	auto choice = [&](DeviceSetting id, const char* label, std::initializer_list<std::pair<unsigned char, const char*>> options) {
+		if (!this->_headphones.hasReportedDeviceSetting(id))
+		{
+			return;
+		}
+		unsigned char& value = this->_deviceSettings[static_cast<int>(id)];
+		char unknownLabel[32];
+		snprintf(unknownLabel, sizeof(unknownLabel), "Other (%02X)", value);
+		const char* preview = unknownLabel;
+		for (const auto& [optionValue, optionLabel] : options)
+		{
+			if (optionValue == value)
+			{
+				preview = optionLabel;
+			}
+		}
+
+		ImGui::TextUnformatted(label);
+		ImGui::PushItemWidth(card.inner());
+		ImGui::PushID(label);
+		if (ImGui::BeginCombo("##choice", preview))
+		{
+			for (const auto& [optionValue, optionLabel] : options)
+			{
+				if (ImGui::Selectable(optionLabel, optionValue == value))
+				{
+					value = optionValue;
+				}
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::PopID();
+		ImGui::PopItemWidth();
+		this->_headphones.setDeviceSetting(id, value);
+	};
+
+	onOff(DeviceSetting::SPEAK_TO_CHAT, "Speak-to-Chat", "Pauses music and lets in sound when you start talking");
+	onOff(DeviceSetting::AUTO_PAUSE, "Pause when taken off", "Pauses playback when you take the headphones off");
+	onOff(DeviceSetting::DSEE_EXTREME, "DSEE Extreme", "Upscales compressed music");
+	ImGui::Dummy(ImVec2(0, 2));
+	choice(DeviceSetting::SOUND_QUALITY_MODE, "Bluetooth connection", {
+		{ SOUND_QUALITY_PRIORITY, "Priority on sound quality" },
+		{ STABLE_CONNECTION_PRIORITY, "Priority on stable connection" },
+	});
+	choice(DeviceSetting::AUTO_POWER_OFF, "Auto power off", {
+		{ AUTO_POWER_OFF_WHEN_REMOVED, "When the headphones are taken off" },
+		{ AUTO_POWER_OFF_NEVER, "Do not turn off" },
+	});
 }
 
 void CrossPlatformGUI::_drawLegacyControls()

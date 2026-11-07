@@ -64,9 +64,13 @@ namespace CommandSerializer
 	const char* codecName(AUDIO_CODEC codec);
 
 	//Experimental: Speak-to-Chat
-	Buffer serializeSpeakToChatQueryV2();
-	Buffer serializeSpeakToChatV2(bool enabled);
-	bool parseSpeakToChatV2(const Buffer& payload, bool& enabled);
+	//Simple device settings (see DeviceSettingSpec)
+	const DeviceSettingSpec& deviceSettingSpec(DeviceSetting id);
+	Buffer serializeDeviceSettingQuery(DeviceSetting id);
+	//Builds the set command from the last reply, so bytes we don't understand are sent back unchanged
+	Buffer serializeDeviceSetting(DeviceSetting id, const Buffer& lastReport, unsigned char value);
+	//Matches a reply or notification for any of the settings
+	bool parseDeviceSetting(const Buffer& payload, DeviceSetting& id, unsigned char& value);
 
 	//Experimental: equalizer set commands are not yet confirmed on the XM5
 	Buffer serializeEqPresetV2(EQ_PRESET preset);

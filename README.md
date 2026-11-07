@@ -20,11 +20,12 @@ Everything here has been tested on a WH-1000XM5 (firmware 2.5.1) on Windows.
 - Pick any equalizer preset (Bright, Excited, Mellow, Relaxed, Vocal, Treble Boost, Bass Boost, Speech and so on), or set Clear Bass and the 5 bands yourself
 - See the battery level, which refreshes every minute, and whether it's charging
 - See the model, firmware version and the Bluetooth codec in use (SBC, AAC or LDAC)
+- Turn Speak-to-Chat, pause when taken off and DSEE Extreme on or off, choose between sound quality and a stable connection, and set auto power off
 - When it connects, the app shows the settings your headphones already have, and it keeps up when you press the button on the earcup
 - On Windows there's a tray icon: hover it for battery and mode, or right-click to switch modes. Closing the window leaves the app running in the tray
 - If you only have one pair of Sony headphones paired, it connects to them by itself
 
-Speak-to-Chat, wind noise reduction and the other XM5-only settings aren't supported yet.
+Adaptive Sound Control, multipoint and touch control settings aren't supported yet.
 
 ## Supported headphones
 
@@ -105,9 +106,17 @@ If you want to add features, this is what's been worked out so far. Payloads go 
 | Codec | `12 02` | `13 02 <codec>` (01 SBC, 02 AAC, 10 LDAC) | |
 | NC / ambient | `66 17` | `67 17 …` / `69 17 01 <on> <ambient> <voice> <level>` | `68 17 01 <on> <ambient> <voice> <level>` |
 | Equalizer | `56 00` | `57 00 <preset> 06 <6 bands, 0-20>` / `59 00 …` | `58 00 <preset> 00`, or `58 00 A0 06 <bands>` for custom |
-| Unknown on/off setting | `F6 0C` | `F7 0C 01 <00 on / 01 off>` / `F9 0C …` | `F8 0C 01 <state>` (the headphones accept it, but it isn't Speak-to-Chat) |
+| Speak-to-Chat | `F6 0C` | `F7 0C <on/off> <x>` / `F9 0C …` | `F8 0C <on/off> <x>` |
+| Pause when taken off | `F6 01` | `F7 01 <on/off>` / `F9 01 …` | `F8 01 <on/off>` |
+| DSEE Extreme | `D6 D1` | `D7 D1 00 <on/off>` / `D9 D1 …` | `D8 D1 00 <on/off>` |
+| Connection mode | `E6 01` | `E7 01 <01 sound quality / 00 stable connection>` / `E9 01 …` | `E8 01 <mode>` |
+| Auto power off | `26 05` | `27 05 <10 when taken off / 11 never> 00` / `29 05 …` | `28 05 <value> 00` |
+
+On/off settings use `00` for on and `01` for off. To change one of these settings, send the headphones' own reply back with the first byte raised by one (`F7` becomes `F8`) and the value changed; any byte you don't understand, like `<x>` above, goes back unchanged. While Speak-to-Chat is on, the headphones also send `F5 0C …` status messages, which aren't decoded yet.
 
 The headphones expect you to ACK every message they send straight away, and they keep resending it until you do. That's why the client reads from them on a background thread.
+
+The settings above were worked out by recording Sony's phone app with Android's "Bluetooth HCI snoop log" developer option and decoding the result. That's the easiest way to find more.
 
 ## Credits
 

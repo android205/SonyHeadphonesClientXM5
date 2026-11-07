@@ -239,15 +239,19 @@ namespace CommandSerializer
 
 	std::vector<Buffer> connectQueriesV2()
 	{
-		return {
+		std::vector<Buffer> queries = {
 			{ CMD_DEVICE_INFO_GET, 0x01 },        //model name
 			{ CMD_DEVICE_INFO_GET, 0x02 },        //firmware version
 			{ CMD_SUPPORT_FUNCTION_GET, 0x00 },   //logged, for working out more features later
 			serializeBatteryQueryV2(),
 			{ CMD_CODEC_GET_V2, 0x02 },
 			{ CMD_EQ_GET_V2, 0x00 },
-			serializeSpeakToChatQueryV2(),
 		};
+		for (const auto& spec : DEVICE_SETTING_SPECS)
+		{
+			queries.push_back(serializeDeviceSettingQuery(spec.id));
+		}
+		return queries;
 	}
 
 	Buffer serializeBatteryQueryV2()
@@ -339,26 +343,42 @@ namespace CommandSerializer
 		}
 	}
 
-	Buffer serializeSpeakToChatQueryV2()
+	const DeviceSettingSpec& deviceSettingSpec(DeviceSetting id)
 	{
-		return { CMD_STC_GET_V2, STC_SUBTYPE_V2 };
+		return DEVICE_SETTING_SPECS[static_cast<int>(id)];
 	}
 
-	Buffer serializeSpeakToChatV2(bool enabled)
+	Buffer serializeDeviceSettingQuery(DeviceSetting id)
 	{
-		//Same layout as the F7 reply: F8 0C 01 <state>
-		return { CMD_STC_SET_V2, STC_SUBTYPE_V2, 0x01, enabled ? STC_ON_V2 : STC_OFF_V2 };
+		const auto& spec = deviceSettingSpec(id);
+		return { spec.queryCmd, spec.subtype };
 	}
 
-	bool parseSpeakToChatV2(const Buffer& payload, bool& enabled)
+	Buffer serializeDeviceSetting(DeviceSetting id, const Buffer& lastReport, unsigned char value)
 	{
-		//F7 0C 01 <state> (reply) or F9 0C 01 <state> (notification)
-		if (!_isReplyOrNotify(payload, CMD_STC_GET_V2, STC_SUBTYPE_V2, 4))
+		const auto& spec = deviceSettingSpec(id);
+		Buffer ret = lastReport;
+		if (ret.size() <= spec.valueIndex)
 		{
-			return false;
+			throw std::logic_error("Can't change a setting the headphones haven't reported");
 		}
-		enabled = payload[3] == STC_ON_V2;
-		return true;
+		ret[0] = static_cast<char>(spec.queryCmd + 2);
+		ret[spec.valueIndex] = static_cast<char>(value);
+		return ret;
+	}
+
+	bool parseDeviceSetting(const Buffer& payload, DeviceSetting& id, unsigned char& value)
+	{
+		for (const auto& spec : DEVICE_SETTING_SPECS)
+		{
+			if (_isReplyOrNotify(payload, spec.queryCmd, spec.subtype, spec.valueIndex + 1))
+			{
+				id = spec.id;
+				value = static_cast<unsigned char>(payload[spec.valueIndex]);
+				return true;
+			}
+		}
+		return false;
 	}
 
 	Buffer serializeEqPresetV2(EQ_PRESET preset)

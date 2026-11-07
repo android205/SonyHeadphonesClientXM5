@@ -1,6 +1,6 @@
 #3.15+ for CMAKE_MSVC_RUNTIME_LIBRARY; also keeps CMake 4 (which dropped older minimums) happy
 cmake_minimum_required(VERSION 3.15)
-project(SonyHeadphonesClient VERSION 2.0.0)
+project(SonyHeadphonesClient VERSION 2.1.0)
 
 set(CMAKE_CXX_STANDARD 20)
 

@@ -48,7 +48,7 @@ struct Property {
 	T desired;
 
 	void fulfill();
-	bool isFulfilled();
+	bool isFulfilled() const;
 };
 
 class Headphones {
@@ -92,10 +92,11 @@ public:
 	bool hasReportedEqV2();
 	bool takeExternalEqV2(EqStateV2& out);
 
-	//Experimental Speak-to-Chat, same adopt-what-the-headphones-report rules
-	void setSpeakToChatV2(bool val);
-	bool hasReportedSpeakToChatV2();
-	bool takeExternalSpeakToChatV2(bool& out);
+	//Simple device settings (Speak-to-Chat, auto power off, ...), same adopt-what-the-headphones-report rules.
+	//Values are the raw bytes the headphones use (see DeviceSetting in Constants.h).
+	void setDeviceSetting(DeviceSetting id, unsigned char value);
+	bool hasReportedDeviceSetting(DeviceSetting id);
+	bool takeExternalDeviceSetting(DeviceSetting id, unsigned char& out);
 	
 	bool isChanged();
 	void setChanges();
@@ -119,14 +120,19 @@ private:
 	Clock::time_point _lastEqSendTime;
 	Property<EqStateV2> _eqV2;
 
-	bool _isSpeakToChatV2Changed();
-	bool _reportedStc = false;
-	bool _hasReportedStc = false;
-	unsigned int _stcReportCount = 0;
-	unsigned int _appliedStcReportCount = 0;
-	bool _awaitingInitialStc = true;
-	Clock::time_point _lastStcSendTime;
-	Property<bool> _speakToChatV2 = { false, false };
+	struct DeviceSettingState
+	{
+		Buffer lastReport;             //Raw reply, used as the template when changing the setting
+		unsigned char reported = 0;
+		bool hasReport = false;
+		unsigned int reportCount = 0;
+		unsigned int appliedReportCount = 0;
+		bool awaitingInitial = true;
+		Clock::time_point lastSendTime;
+		Property<unsigned char> value = { 0, 0 };
+	};
+	bool _isDeviceSettingChanged(const DeviceSettingState& state);
+	DeviceSettingState _settings[static_cast<int>(DeviceSetting::COUNT)];
 
 	NcAsmStateV2 _reportedNcAsmV2;
 	bool _hasReportedNcAsmV2 = false;
@@ -155,7 +161,7 @@ inline void Property<T>::fulfill()
 }
 
 template<class T>
-inline bool Property<T>::isFulfilled()
+inline bool Property<T>::isFulfilled() const
 {
 	return this->desired == this->current;
 }

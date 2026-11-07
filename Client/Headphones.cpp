@@ -35,15 +35,19 @@ void Headphones::_handleMessage(const CommandSerializer::Message& msg)
 	bool charging;
 	AUDIO_CODEC codec;
 	EqStateV2 eq;
-	bool stcEnabled;
+	DeviceSetting settingId;
+	unsigned char settingValue;
 
-	if (CommandSerializer::parseSpeakToChatV2(msg.messageBytes, stcEnabled))
+	if (CommandSerializer::parseDeviceSetting(msg.messageBytes, settingId, settingValue))
 	{
-		Log::line("STATE", std::string("Speak-to-Chat: ") + (stcEnabled ? "on" : "off") + " (raw " + CommandSerializer::toHex(msg.messageBytes) + ")");
+		Log::line("STATE", std::string(CommandSerializer::deviceSettingSpec(settingId).name) + ": "
+			+ CommandSerializer::toHex({ static_cast<char>(settingValue) }) + " (raw " + CommandSerializer::toHex(msg.messageBytes) + ")");
 		std::lock_guard guard(this->_propertyMtx);
-		this->_reportedStc = stcEnabled;
-		this->_hasReportedStc = true;
-		this->_stcReportCount++;
+		auto& state = this->_settings[static_cast<int>(settingId)];
+		state.lastReport = msg.messageBytes;
+		state.reported = settingValue;
+		state.hasReport = true;
+		state.reportCount++;
 	}
 	else if (CommandSerializer::parseDeviceInfo(msg.messageBytes, infoType, infoValue))
 	{
@@ -123,42 +127,45 @@ bool Headphones::takeExternalEqV2(EqStateV2& out)
 	return true;
 }
 
-void Headphones::setSpeakToChatV2(bool val)
+void Headphones::setDeviceSetting(DeviceSetting id, unsigned char value)
 {
 	std::lock_guard guard(this->_propertyMtx);
-	this->_speakToChatV2.desired = val;
+	this->_settings[static_cast<int>(id)].value.desired = value;
 }
 
-bool Headphones::hasReportedSpeakToChatV2()
+bool Headphones::hasReportedDeviceSetting(DeviceSetting id)
 {
 	std::lock_guard guard(this->_propertyMtx);
-	return this->_hasReportedStc;
+	return this->_settings[static_cast<int>(id)].hasReport;
 }
 
-bool Headphones::takeExternalSpeakToChatV2(bool& out)
+bool Headphones::takeExternalDeviceSetting(DeviceSetting id, unsigned char& out)
 {
 	std::lock_guard guard(this->_propertyMtx);
-	if (this->_stcReportCount == this->_appliedStcReportCount)
+	auto& state = this->_settings[static_cast<int>(id)];
+	if (state.reportCount == state.appliedReportCount)
 	{
 		return false;
 	}
-	if (!this->_awaitingInitialStc)
+	//Adopt the first report after connecting right away; later, let our own commands settle
+	//and don't override a change the user hasn't sent yet
+	if (!state.awaitingInitial)
 	{
-		if (Clock::now() - this->_lastStcSendTime < REPORT_SETTLE_TIME || !this->_speakToChatV2.isFulfilled())
+		if (Clock::now() - state.lastSendTime < REPORT_SETTLE_TIME || !state.value.isFulfilled())
 		{
 			return false;
 		}
 	}
-	this->_awaitingInitialStc = false;
-	this->_appliedStcReportCount = this->_stcReportCount;
-	out = this->_reportedStc;
-	this->_speakToChatV2.current = this->_speakToChatV2.desired = out;
+	state.awaitingInitial = false;
+	state.appliedReportCount = state.reportCount;
+	out = state.reported;
+	state.value.current = state.value.desired = out;
 	return true;
 }
 
-bool Headphones::_isSpeakToChatV2Changed()
+bool Headphones::_isDeviceSettingChanged(const DeviceSettingState& state)
 {
-	return !this->_awaitingInitialStc && !this->_speakToChatV2.isFulfilled();
+	return !state.awaitingInitial && state.hasReport && !state.value.isFulfilled();
 }
 
 bool Headphones::_isEqV2Changed()
@@ -185,9 +192,13 @@ void Headphones::onConnecting()
 	this->_hasReportedEq = false;
 	this->_awaitingInitialEq = true;
 	this->_appliedEqReportCount = this->_eqReportCount;
-	this->_hasReportedStc = false;
-	this->_awaitingInitialStc = true;
-	this->_appliedStcReportCount = this->_stcReportCount;
+	for (auto& state : this->_settings)
+	{
+		state.hasReport = false;
+		state.lastReport.clear();
+		state.awaitingInitial = true;
+		state.appliedReportCount = state.reportCount;
+	}
 	//Force the current settings to be resent on the new connection
 	this->_useV2Protocol.current = !this->_useV2Protocol.desired;
 	this->_surroundPosition.current = SOUND_POSITION_PRESET::OUT_OF_RANGE;
@@ -340,7 +351,12 @@ bool Headphones::isChanged()
 	std::lock_guard guard(this->_propertyMtx);
 	if (this->_useV2Protocol.desired)
 	{
-		return this->_isNcAsmV2Changed() || this->_isEqV2Changed() || this->_isSpeakToChatV2Changed() || this->_isBatteryRefreshDue();
+		bool settingChanged = false;
+		for (const auto& state : this->_settings)
+		{
+			settingChanged |= this->_isDeviceSettingChanged(state);
+		}
+		return this->_isNcAsmV2Changed() || this->_isEqV2Changed() || settingChanged || this->_isBatteryRefreshDue();
 	}
 	return !(this->_useV2Protocol.isFulfilled() && this->_ambientSoundControl.isFulfilled() && this->_asmLevel.isFulfilled() && this->_focusOnVoice.isFulfilled())
 		|| this->_isVptChanged();
@@ -390,19 +406,26 @@ void Headphones::_setChangesV2()
 		this->_eqV2.current = toSend;
 	}
 
-	if (this->_isSpeakToChatV2Changed())
+	for (int i = 0; i < static_cast<int>(DeviceSetting::COUNT); i++)
 	{
-		this->_lastStcSendTime = Clock::now();
-		bool toSend = this->_speakToChatV2.desired;
+		auto& state = this->_settings[i];
+		if (!this->_isDeviceSettingChanged(state))
+		{
+			continue;
+		}
+		auto id = static_cast<DeviceSetting>(i);
+		state.lastSendTime = Clock::now();
+		unsigned char toSend = state.value.desired;
+		Buffer command = CommandSerializer::serializeDeviceSetting(id, state.lastReport, toSend);
 		lock.unlock();
 
-		this->_conn.sendCommand(CommandSerializer::serializeSpeakToChatV2(toSend));
-		//Read it back: if the guessed command didn't take, the checkbox flips back
-		this->_conn.sendCommand(CommandSerializer::serializeSpeakToChatQueryV2());
+		this->_conn.sendCommand(command);
+		//Read it back, so the control shows what the headphones actually did
+		this->_conn.sendCommand(CommandSerializer::serializeDeviceSettingQuery(id));
 
 		lock.lock();
-		this->_lastStcSendTime = Clock::now();
-		this->_speakToChatV2.current = toSend;
+		state.lastSendTime = Clock::now();
+		state.value.current = toSend;
 	}
 
 	if (this->_isBatteryRefreshDue())

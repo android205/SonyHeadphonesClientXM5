@@ -14,7 +14,7 @@
 #include <future>
 
 constexpr auto GUI_MAX_MESSAGES = 5;
-constexpr auto GUI_HEIGHT = 820;
+constexpr auto GUI_HEIGHT = 960;
 constexpr auto GUI_WIDTH = 480;
 constexpr auto FPS = 60;
 constexpr auto MS_PER_FRAME = 1000 / FPS;
@@ -63,6 +63,7 @@ private:
 	void _drawHeader();
 	void _drawNoiseControlV2();
 	void _drawEqualizer();
+	void _drawDeviceSettings();
 	void _drawLegacyControls();
 	void _drawAdvanced();
 	void _drawFooter();
@@ -87,6 +88,9 @@ private:
 	int _ncMode = static_cast<int>(NC_ASM_MODE_V2::NOISE_CANCELLING);
 	int _asmLevel = 1;
 	bool _focusOnVoice = false;
+
+	//Raw values of the simple device settings, as the headphones report them
+	unsigned char _deviceSettings[static_cast<int>(DeviceSetting::COUNT)] = {};
 
 	ImFont* _fontBody = nullptr;
 	ImFont* _fontTitle = nullptr;
