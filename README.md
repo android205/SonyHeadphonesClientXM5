@@ -22,12 +22,12 @@ Everything here has been tested on a WH-1000XM5 (firmware 2.5.1) on Windows.
 - Pick any equalizer preset (Bright, Excited, Mellow, Relaxed, Vocal, Treble Boost, Bass Boost, Speech and so on), or set Clear Bass and the 5 bands yourself
 - See the battery level, which refreshes every minute, and whether it's charging
 - See the model, firmware version and the Bluetooth codec in use (SBC, AAC or LDAC)
-- Turn Speak-to-Chat, pause when taken off and DSEE Extreme on or off, choose between sound quality and a stable connection, and set auto power off
+- Turn Speak-to-Chat, pause when taken off, DSEE Extreme, the touch sensor panel and multipoint on or off, choose between sound quality and a stable connection, and set auto power off
 - When it connects, the app shows the settings your headphones already have, and it keeps up when you press the button on the earcup
 - On Windows there's a tray icon: hover it for battery and mode, or right-click to switch modes. Closing the window leaves the app running in the tray
 - If you only have one pair of Sony headphones paired, it connects to them by itself
 
-Adaptive Sound Control, multipoint and touch control settings aren't supported yet.
+Adaptive Sound Control and changing what the touch controls and buttons do aren't supported yet.
 
 ## Supported headphones
 
@@ -110,11 +110,17 @@ If you want to add features, this is what's been worked out so far. Payloads go 
 | Equalizer | `56 00` | `57 00 <preset> 06 <6 bands, 0-20>` / `59 00 …` | `58 00 <preset> 00`, or `58 00 A0 06 <bands>` for custom |
 | Speak-to-Chat | `F6 0C` | `F7 0C <on/off> <x>` / `F9 0C …` | `F8 0C <on/off> <x>` |
 | Pause when taken off | `F6 01` | `F7 01 <on/off>` / `F9 01 …` | `F8 01 <on/off>` |
-| DSEE Extreme | `D6 D1` | `D7 D1 00 <on/off>` / `D9 D1 …` | `D8 D1 00 <on/off>` |
-| Connection mode | `E6 01` | `E7 01 <01 sound quality / 00 stable connection>` / `E9 01 …` | `E8 01 <mode>` |
 | Auto power off | `26 05` | `27 05 <10 when taken off / 11 never> 00` / `29 05 …` | `28 05 <value> 00` |
+| Connection mode | `E6 00` | `E7 00 <00 sound quality / 01 stable connection>` / `E9 00 …` | `E8 00 <mode>` |
+| DSEE Extreme | `E6 01` | `E7 01 <01 auto / 00 off>` / `E9 01 …` | `E8 01 <value>` |
+| Touch sensor panel | `D6 D1` | `D7 D1 00 <on/off>` / `D9 D1 …` | `D8 D1 00 <on/off>` |
+| Multipoint | `D6 D2` | `D7 D2 00 <on/off>` / `D9 D2 …` | `D8 D2 00 <on/off>` |
 
-On/off settings use `00` for on and `01` for off. To change one of these settings, send the headphones' own reply back with the first byte raised by one (`F7` becomes `F8`) and the value changed; any byte you don't understand, like `<x>` above, goes back unchanged. While Speak-to-Chat is on, the headphones also send `F5 0C …` status messages, which aren't decoded yet.
+On/off settings use `00` for on and `01` for off, except DSEE Extreme, which uses `01` for auto. To change one of these settings, send the headphones' own reply back with the first byte raised by one (`F7` becomes `F8`) and the value changed; any byte you don't understand, like `<x>` above, goes back unchanged.
+
+The `D1`, `D2` … settings are generic switches that each headphone model defines for itself. Ask for their names with `D0 D1`, `D0 D2` and so on; the XM5 answers `TOUCH_PANEL_SETTING` and `MULTIPOINT_SETTING`.
+
+Other messages you'll see: `A5 01 00 <01 play / 02 pause>` is a playback status update, `45 …` is LE Audio status, and `F5 0C …` is live Speak-to-Chat status. The first byte of every command follows one scheme: the high nibble is the feature (`2x` power, `5x` equalizer, `6x` noise cancelling, `Ax` playback, `Dx` general settings, `Ex` audio, `Fx` system) and the low nibble is the operation (`0` get capability, `2` get status, `6` get, `8` set, `9` notify, and so on).
 
 The headphones expect you to ACK every message they send straight away, and they keep resending it until you do. That's why the client reads from them on a background thread.
 

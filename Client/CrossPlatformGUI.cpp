@@ -661,16 +661,17 @@ void CrossPlatformGUI::_drawDeviceSettings()
 	Card card;
 	sectionTitle("SETTINGS");
 
-	auto onOff = [&](DeviceSetting id, const char* label, const char* help) {
+	auto onOff = [&](DeviceSetting id, const char* label, const char* help,
+		unsigned char onValue = SETTING_ON, unsigned char offValue = SETTING_OFF) {
 		if (!this->_headphones.hasReportedDeviceSetting(id))
 		{
 			return;
 		}
 		unsigned char& value = this->_deviceSettings[static_cast<int>(id)];
-		bool on = value == SETTING_ON;
+		bool on = value == onValue;
 		if (ImGui::Checkbox(label, &on))
 		{
-			value = on ? SETTING_ON : SETTING_OFF;
+			value = on ? onValue : offValue;
 		}
 		ImGui::PushFont(this->_fontSmall);
 		ImGui::Indent(ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x);
@@ -719,9 +720,11 @@ void CrossPlatformGUI::_drawDeviceSettings()
 
 	onOff(DeviceSetting::SPEAK_TO_CHAT, "Speak-to-Chat", "Pauses music and lets in sound when you start talking");
 	onOff(DeviceSetting::AUTO_PAUSE, "Pause when taken off", "Pauses playback when you take the headphones off");
-	onOff(DeviceSetting::DSEE_EXTREME, "DSEE Extreme", "Upscales compressed music");
+	onOff(DeviceSetting::DSEE_EXTREME, "DSEE Extreme", "Upscales compressed music (Sony's \"Auto\" setting)", UPSCALING_AUTO, UPSCALING_OFF);
+	onOff(DeviceSetting::TOUCH_PANEL, "Touch sensor control panel", "Swipe and tap controls on the right earcup");
+	onOff(DeviceSetting::MULTIPOINT, "Multipoint", "Stay connected to two devices at once. Turning this off can disconnect one of them");
 	ImGui::Dummy(ImVec2(0, 2));
-	choice(DeviceSetting::SOUND_QUALITY_MODE, "Bluetooth connection", {
+	choice(DeviceSetting::CONNECTION_MODE, "Bluetooth connection", {
 		{ SOUND_QUALITY_PRIORITY, "Priority on sound quality" },
 		{ STABLE_CONNECTION_PRIORITY, "Priority on stable connection" },
 	});

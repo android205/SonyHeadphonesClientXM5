@@ -345,7 +345,14 @@ namespace CommandSerializer
 
 	const DeviceSettingSpec& deviceSettingSpec(DeviceSetting id)
 	{
-		return DEVICE_SETTING_SPECS[static_cast<int>(id)];
+		for (const auto& spec : DEVICE_SETTING_SPECS)
+		{
+			if (spec.id == id)
+			{
+				return spec;
+			}
+		}
+		throw std::logic_error("No spec for device setting");
 	}
 
 	Buffer serializeDeviceSettingQuery(DeviceSetting id)

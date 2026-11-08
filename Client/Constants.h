@@ -106,18 +106,22 @@ inline constexpr char CMD_CODEC_GET_V2 = 0x12;         //12 02 -> 13 02 <codec>
 inline constexpr char CMD_BATTERY_GET_V2 = 0x22;       //22 00 -> 23 00 <percent> <charging>
 inline constexpr char CMD_EQ_GET_V2 = 0x56;            //56 00 -> 57 00 <preset> <band count> <bands...>
 inline constexpr char CMD_EQ_SET_V2 = 0x58;            //58 00 <preset> 00, or 58 00 A0 06 <bands> for Custom
-//Simple device settings, worked out from a capture of Sony's app talking to a WH-1000XM5.
+//Simple device settings on the WH-1000XM5. The command bytes are SYSTEM_ (F6), POWER_ (26),
+//AUDIO_ (E6) and GENERAL_SETTING_ (D6) GET_PARAM; the second byte is the "inquired type".
 //They all follow one pattern: query <cmd> <subtype>, the reply is <cmd+1> <subtype> ...,
 //a notification is <cmd+3> ..., and the setting is changed by sending the reply's own bytes back
 //with the first byte replaced by <cmd+2> and the value byte changed.
-//On/off settings use 00 = on, 01 = off.
+//General settings (D1, D2, ...) are generic switches; the headphones name them in their
+//capability reply (D0 D1 -> D1 D1 ... "TOUCH_PANEL_SETTING").
 enum class DeviceSetting : int
 {
 	SPEAK_TO_CHAT = 0,     //F6 0C -> F7 0C <00 on / 01 off> <unknown, kept as is>
 	AUTO_PAUSE,            //F6 01 -> F7 01 <00 on / 01 off>  (pause when headphones are taken off)
-	AUTO_POWER_OFF,        //26 05 -> 27 05 <value> 00
-	SOUND_QUALITY_MODE,    //E6 01 -> E7 01 <01 sound quality / 00 stable connection>
-	DSEE_EXTREME,          //D6 D1 -> D7 D1 00 <00 on / 01 off>
+	AUTO_POWER_OFF,        //26 05 -> 27 05 <10 when taken off / 11 never> 00
+	CONNECTION_MODE,       //E6 00 -> E7 00 <00 sound quality / 01 stable connection>
+	DSEE_EXTREME,          //E6 01 -> E7 01 <01 auto / 00 off>  (upscaling)
+	TOUCH_PANEL,           //D6 D1 -> D7 D1 00 <00 on / 01 off>  (general setting 1)
+	MULTIPOINT,            //D6 D2 -> D7 D2 00 <00 on / 01 off>  (general setting 2)
 	COUNT
 };
 
@@ -134,16 +138,22 @@ inline const DeviceSettingSpec DEVICE_SETTING_SPECS[] = {
 	{ DeviceSetting::SPEAK_TO_CHAT,      (char)0xF6, 0x0C,       2, "Speak-to-Chat" },
 	{ DeviceSetting::AUTO_PAUSE,         (char)0xF6, 0x01,       2, "Pause when taken off" },
 	{ DeviceSetting::AUTO_POWER_OFF,     0x26,       0x05,       2, "Auto power off" },
-	{ DeviceSetting::SOUND_QUALITY_MODE, (char)0xE6, 0x01,       2, "Sound quality mode" },
-	{ DeviceSetting::DSEE_EXTREME,       (char)0xD6, (char)0xD1, 3, "DSEE Extreme" },
+	{ DeviceSetting::CONNECTION_MODE,    (char)0xE6, 0x00,       2, "Connection mode" },
+	{ DeviceSetting::DSEE_EXTREME,       (char)0xE6, 0x01,       2, "DSEE Extreme" },
+	{ DeviceSetting::TOUCH_PANEL,        (char)0xD6, (char)0xD1, 3, "Touch panel" },
+	{ DeviceSetting::MULTIPOINT,         (char)0xD6, (char)0xD2, 3, "Multipoint" },
 };
 
+//System and general settings: 00 = on, 01 = off
 inline constexpr unsigned char SETTING_ON = 0x00;
 inline constexpr unsigned char SETTING_OFF = 0x01;
+//DSEE Extreme (upscaling) is the other way round
+inline constexpr unsigned char UPSCALING_AUTO = 0x01;
+inline constexpr unsigned char UPSCALING_OFF = 0x00;
 inline constexpr unsigned char AUTO_POWER_OFF_WHEN_REMOVED = 0x10;
 inline constexpr unsigned char AUTO_POWER_OFF_NEVER = 0x11;
-inline constexpr unsigned char SOUND_QUALITY_PRIORITY = 0x01;
-inline constexpr unsigned char STABLE_CONNECTION_PRIORITY = 0x00;
+inline constexpr unsigned char SOUND_QUALITY_PRIORITY = 0x00;
+inline constexpr unsigned char STABLE_CONNECTION_PRIORITY = 0x01;
 
 inline constexpr int EQ_BAND_COUNT = 6;                //Clear Bass + 400Hz, 1k, 2.5k, 6.3k, 16k
 inline constexpr int EQ_BAND_CENTER = 10;              //Bands are sent as 0..20, meaning -10..+10
